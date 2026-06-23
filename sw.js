@@ -1,18 +1,23 @@
-const CACHE = 'maccie-diensten-v4';
+const CACHE = 'maccie-hamed-v2';
 const FILES = [
   '/Maccie/',
   '/Maccie/index.html',
   '/Maccie/manifest.json',
   '/Maccie/icon.png'
 ];
-self.addEventListener('install', e => {
+
+self.addEventListener('install', event => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)));
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)));
 });
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))));
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+  );
   self.clients.claim();
 });
-self.addEventListener('fetch', e => {
-  e.respondWith(caches.match(e.request).then(response => response || fetch(e.request)));
+
+self.addEventListener('fetch', event => {
+  event.respondWith(caches.match(event.request).then(res => res || fetch(event.request)));
 });
