@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
-<title>Workday Tracker</title>
+<title>Maccie Diensten</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -104,6 +104,16 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .empty-state{text-align:center;padding:2.5rem 1rem;color:var(--text3);font-size:13px;}
 .empty-state i{font-size:36px;display:block;margin-bottom:8px;}
 
+/* NEW POLISHED STYLE */
+body::before{content:"";position:fixed;inset:0;background:radial-gradient(circle at top left,rgba(255,188,13,.22),transparent 32%),radial-gradient(circle at top right,rgba(218,41,28,.18),transparent 36%);pointer-events:none;}
+.topbar,.next-banner{background:linear-gradient(135deg,#DA291C,#A31610);}
+.logo{box-shadow:0 8px 24px rgba(0,0,0,.18);}
+.stat,.section-card,.shift-card,.gmail-btn,.today-btn{box-shadow:0 10px 30px rgba(0,0,0,.06);}
+.madeby{font-size:11px;color:var(--text3);text-align:center;margin:8px 0 2px;}
+.import-help{font-size:12px;color:var(--text2);line-height:1.4;padding:0 14px 12px;}
+.import-box{min-height:120px;background:var(--card2);border-radius:12px;padding:10px;}
+.small-btn{width:100%;background:var(--gold);color:#2b1600;border:none;border-radius:14px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;font-family:inherit;}
+
 /* ADD SCREEN */
 .add-wrap{padding:12px 14px 100px;flex:1;overflow-y:auto;}
 .section-card{background:var(--card);border-radius:16px;border:0.5px solid var(--border);margin-bottom:12px;overflow:hidden;}
@@ -140,8 +150,8 @@ textarea{resize:none;min-height:40px;}
   <div class="topbar-left">
     <div class="logo">M</div>
     <div>
-      <h1>Workday Tracker</h1>
-      <p>McDonald's diensten & uren</p>
+      <h1>Maccie Diensten</h1>
+      <p>Rooster, uren & salaris</p>
     </div>
   </div>
   <div class="topbar-right">
@@ -189,9 +199,20 @@ textarea{resize:none;min-height:40px;}
 <!-- ADD SCREEN -->
 <div class="screen" id="screen-add">
   <div class="add-wrap">
-    <button class="gmail-btn" onclick="scanGmail()">
-      <i class="ti ti-mail"></i> Importeer uit Gmail
+    <button class="gmail-btn" onclick="toggleImport()">
+      <i class="ti ti-mail"></i> Importeer rooster uit Gmail / tekst
     </button>
+
+    <div class="section-card" id="import-card" style="display:none">
+      <div class="section-card-title">Rooster plakken</div>
+      <p class="import-help">Open Gmail, kopieer je roostertekst en plak het hier. Werkt met regels zoals:<br><b>vrijdag 17 juli 2026 20:30 - 02:30, MPS</b></p>
+      <div class="field full">
+        <textarea class="import-box" id="import-text" placeholder="Plak hier je rooster uit Gmail..."></textarea>
+      </div>
+      <div class="field full">
+        <button class="small-btn" onclick="importTextShifts()">Importeer diensten</button>
+      </div>
+    </div>
 
     <div class="section-card">
       <div class="section-card-title">Dienst toevoegen</div>
@@ -241,6 +262,7 @@ textarea{resize:none;min-height:40px;}
 
     <button class="save-btn" onclick="addShift()">Dienst opslaan</button>
     <button class="today-btn" onclick="markToday()">Vandaag als gewerkt markeren</button>
+    <div class="madeby">Made by Hamed</div>
   </div>
 </div>
 
@@ -266,6 +288,17 @@ const MONTHS_S=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov
 let shifts=JSON.parse(localStorage.getItem('mcdo_v3')||'[]');
 let viewYear=new Date().getFullYear(), viewMonth=new Date().getMonth();
 let selectedDate=null, listMode='month';
+
+function localDateStr(date=new Date()){
+  const y=date.getFullYear();
+  const m=String(date.getMonth()+1).padStart(2,'0');
+  const d=String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+function parseLocalDate(str){
+  const [y,m,d]=str.split('-').map(Number);
+  return new Date(y,(m||1)-1,d||1);
+}
 
 function save(){localStorage.setItem('mcdo_v3',JSON.stringify(shifts));}
 
@@ -365,10 +398,10 @@ function renderList(){
   let hdr='Alle diensten';
   if(listMode==='day'&&selectedDate){
     list=shifts.filter(s=>s.date===selectedDate);
-    const d=new Date(selectedDate);
+    const d=parseLocalDate(selectedDate);
     hdr=`${DAYS_S[d.getDay()]} ${d.getDate()} ${MONTHS_S[d.getMonth()]}`;
   } else if(listMode==='month'){
-    list=shifts.filter(s=>{const d=new Date(s.date);return d.getMonth()===viewMonth&&d.getFullYear()===viewYear;});
+    list=shifts.filter(s=>{const d=parseLocalDate(s.date);return d.getMonth()===viewMonth&&d.getFullYear()===viewYear;});
     hdr=MONTHS_NL[viewMonth];
   }
   list=[...list].sort((a,b)=>b.date.localeCompare(a.date));
@@ -379,7 +412,7 @@ function renderList(){
     el.innerHTML='<div class="empty-state"><i class="ti ti-calendar-off"></i>Geen diensten</div>';
   } else {
     el.innerHTML=list.map(s=>{
-      const d=new Date(s.date);
+      const d=parseLocalDate(s.date);
       const h=s.start&&s.end?hrs(s.start,s.end,s.brk||0):0;
       const st=s.status||'planned';
       const bc='badge-'+st;
@@ -410,8 +443,8 @@ function renderStats(){
   const startWeek=new Date(now);startWeek.setDate(now.getDate()-now.getDay());startWeek.setHours(0,0,0,0);
   const endWeek=new Date(startWeek);endWeek.setDate(startWeek.getDate()+6);
 
-  const weekShifts=shifts.filter(s=>{const d=new Date(s.date);return d>=startWeek&&d<=endWeek&&s.status==='worked';});
-  const monthShifts=shifts.filter(s=>{const d=new Date(s.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()&&s.status==='worked';});
+  const weekShifts=shifts.filter(s=>{const d=parseLocalDate(s.date);return d>=startWeek&&d<=endWeek&&s.status==='worked';});
+  const monthShifts=shifts.filter(s=>{const d=parseLocalDate(s.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()&&s.status==='worked';});
 
   const weekH=weekShifts.reduce((a,s)=>a+(s.start&&s.end?hrs(s.start,s.end,s.brk||0):0),0);
   const monthH=monthShifts.reduce((a,s)=>a+(s.start&&s.end?hrs(s.start,s.end,s.brk||0):0),0);
@@ -423,10 +456,10 @@ function renderStats(){
   document.getElementById('s-month-sub').textContent=monthShifts.length+' diensten';
   document.getElementById('s-earned').textContent=earned>0?'€'+earned.toFixed(2):'€0';
 
-  const upcoming=shifts.filter(s=>{const d=new Date(s.date);d.setHours(0,0,0,0);const t=new Date();t.setHours(0,0,0,0);return d>=t&&s.status==='planned';}).sort((a,b)=>a.date.localeCompare(b.date));
+  const upcoming=shifts.filter(s=>{const d=parseLocalDate(s.date);d.setHours(0,0,0,0);const t=new Date();t.setHours(0,0,0,0);return d>=t&&s.status==='planned';}).sort((a,b)=>a.date.localeCompare(b.date));
   if(upcoming.length){
     const n=upcoming[0];
-    const d=new Date(n.date);
+    const d=parseLocalDate(n.date);
     document.getElementById('s-next-val').textContent=d.getDate()+' '+MONTHS_S[d.getMonth()];
     document.getElementById('s-next-sub').textContent=n.start?n.start+' – '+n.end:'volgende dienst';
     document.getElementById('next-text').innerHTML=`<strong>Volgende dienst:</strong> ${DAYS_S[d.getDay()]} ${d.getDate()} ${MONTHS_S[d.getMonth()]}${n.start?' om '+n.start:''}`;
@@ -459,7 +492,7 @@ function addShift(){
 }
 
 function markToday(){
-  const d=new Date().toISOString().split('T')[0];
+  const d=localDateStr(new Date());
   document.getElementById('inp-date').value=d;
   document.getElementById('inp-status').value='worked';
 }
@@ -479,7 +512,7 @@ function exportCSV(){
   if(!shifts.length){alert('Geen diensten om te exporteren.');return;}
   const rows=[['Datum','Dag','Begintijd','Eindtijd','Status','Uren','Pauze','Uurloon','Verdiend','Locatie','Notitie']];
   shifts.forEach(s=>{
-    const d=new Date(s.date);
+    const d=parseLocalDate(s.date);
     const h=s.start&&s.end?hrs(s.start,s.end,s.brk||0):0;
     rows.push([s.date,DAYS_S[d.getDay()],s.start||'',s.end||'',s.status||'',h.toFixed(2),s.brk||0,s.rate||0,s.rate?+(h*s.rate).toFixed(2):0,s.loc||'',s.note||'']);
   });
@@ -489,39 +522,79 @@ function exportCSV(){
   a.download='diensten.csv';a.click();
 }
 
-async function scanGmail(){
+function toggleImport(){
+  const card=document.getElementById('import-card');
+  card.style.display=card.style.display==='none'?'block':'none';
+}
+
+function monthNumber(name){
+  const m={
+    jan:1,januari:1,january:1,
+    feb:2,februari:2,february:2,
+    mrt:3,mar:3,maart:3,march:3,
+    apr:4,april:4,
+    mei:5,may:5,
+    jun:6,juni:6,june:6,
+    jul:7,juli:7,july:7,
+    aug:8,augustus:8,august:8,
+    sep:9,september:9,
+    okt:10,oct:10,oktober:10,october:10,
+    nov:11,november:11,
+    dec:12,december:12
+  };
+  return m[String(name).toLowerCase().replace('.','')];
+}
+
+function importTextShifts(){
+  const text=document.getElementById('import-text').value;
+  if(!text.trim()){alert('Plak eerst je roostertekst.');return;}
+  const lines=text.split(/\n|\r/).map(l=>l.trim()).filter(Boolean);
+  let added=0, skipped=0;
+  const currentYear=new Date().getFullYear();
+
+  for(const line of lines){
+    // Examples:
+    // vrijdag 17 juli 2026 20:30 - 02:30, MPS
+    // 17 juli 20:30-02:30
+    // 17-07-2026 20:30 - 02:30
+    let date='', start='', end='', loc="McDonald's";
+    let m=line.match(/(?:maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|zondag)?\s*(\d{1,2})\s+([a-zA-Zéû.]+)\s*(\d{4})?\s+(\d{1,2}[:.]\d{2})\s*[-–—tot]+\s*(\d{1,2}[:.]\d{2})(?:\s*,\s*(.*))?/i);
+    if(m){
+      const day=String(m[1]).padStart(2,'0');
+      const mon=monthNumber(m[2]);
+      const year=m[3]||currentYear;
+      if(mon){date=`${year}-${String(mon).padStart(2,'0')}-${day}`;start=m[4].replace('.',':');end=m[5].replace('.',':');if(m[6])loc=m[6].trim();}
+    } else {
+      m=line.match(/(\d{1,2})[-/](\d{1,2})(?:[-/](\d{2,4}))?\s+(\d{1,2}[:.]\d{2})\s*[-–—tot]+\s*(\d{1,2}[:.]\d{2})(?:\s*,\s*(.*))?/i);
+      if(m){
+        const day=String(m[1]).padStart(2,'0');
+        const mon=String(m[2]).padStart(2,'0');
+        let year=m[3]||currentYear;
+        if(String(year).length===2)year='20'+year;
+        date=`${year}-${mon}-${day}`;start=m[4].replace('.',':');end=m[5].replace('.',':');if(m[6])loc=m[6].trim();
+      }
+    }
+    if(date&&start&&end){
+      if(!shifts.find(x=>x.date===date&&x.start===start&&x.end===end)){
+        shifts.push({id:Date.now()+Math.random(),date,start,end,status:'planned',brk:30,rate:0,loc,note:'Geïmporteerd uit rooster'});
+        added++;
+      } else skipped++;
+    }
+  }
+  shifts.sort((a,b)=>a.date.localeCompare(b.date));
+  save();
+  document.getElementById('import-text').value='';
+  document.getElementById('import-card').style.display='none';
+  listMode='month';selectedDate=null;
+  showScreen('home');renderCalendar();renderList();
   const banner=document.getElementById('msg-banner');
   banner.style.display='block';
-  banner.textContent='Gmail doorzoeken op roosters...';
-  showScreen('home');
-  try{
-    const resp=await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        model:"claude-sonnet-4-6",max_tokens:1000,
-        system:'Search Gmail for McDonald\'s rooster/schedule emails. Extract shifts. Return ONLY JSON array no markdown: [{"date":"YYYY-MM-DD","start":"HH:MM","end":"HH:MM","status":"planned","brk":30,"loc":"McDonald\'s"}]. If none found return [].',
-        messages:[{role:"user",content:"Search my Gmail for McDonald's schedule emails and extract my work shifts."}],
-        mcp_servers:[{type:"url",url:"https://gmailmcp.googleapis.com/mcp/v1",name:"gmail-mcp"}]
-      })
-    });
-    const data=await resp.json();
-    const combined=data.content.map(i=>i.type==='mcp_tool_result'?(i.content?.[0]?.text||''):i.type==='text'?i.text:'').join('\n');
-    let found=[];
-    try{const m=combined.match(/\[[\s\S]*?\]/);if(m)found=JSON.parse(m[0]);}catch(e){}
-    if(!found.length){banner.textContent='Geen roosters gevonden in Gmail.';}
-    else{
-      let added=0;
-      found.forEach(s=>{if(!shifts.find(x=>x.date===s.date&&x.start===s.start)){shifts.push({id:Date.now()+Math.random(),...s});added++;}});
-      shifts.sort((a,b)=>a.date.localeCompare(b.date));
-      save();renderCalendar();renderList();
-      banner.textContent=`${added} dienst${added!==1?'en':''} geïmporteerd!`;
-    }
-  }catch(e){banner.textContent='Gmail niet bereikbaar. Voeg handmatig toe.';}
-  setTimeout(()=>{banner.style.display='none';},4000);
+  banner.textContent=added?`${added} dienst${added!==1?'en':''} geïmporteerd${skipped?`, ${skipped} dubbel overgeslagen`:''}.`:'Geen diensten gevonden. Gebruik bijv: vrijdag 17 juli 2026 20:30 - 02:30, MPS';
+  setTimeout(()=>{banner.style.display='none';},5000);
 }
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-document.getElementById('inp-date').value=new Date().toISOString().split('T')[0];
+document.getElementById('inp-date').value=localDateStr(new Date());
 renderCalendar();renderList();
 </script>
 </body>
